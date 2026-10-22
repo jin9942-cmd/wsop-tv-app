@@ -1,8 +1,7 @@
-// Time helpers (ported from the web demo's lib/time.ts). All stored times are UTC ISO strings.
-// Zone offsets are computed here instead of with Intl time zones so web and Android (Hermes) format identically.
+// Time zone helpers (web demo v2 lib/time.ts). Every time in the UI goes through these, so changing the zone converts
+// everything at once. Zone offsets are computed here instead of with Intl time zones so web and Android (Hermes) agree.
 
-export const DISPLAY_TZ = ['Asia/Seoul', 'America/Los_Angeles'] as const;
-export type DisplayTz = (typeof DISPLAY_TZ)[number];
+export const VENUE_TZ = 'America/Los_Angeles';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -12,15 +11,13 @@ const DAY = 24 * HOUR;
 function sunday(year: number, month: number, n: number, hourUtc: number) {
   if (n > 0) {
     const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
-    const day = 1 + ((7 - first) % 7) + (n - 1) * 7;
-    return Date.UTC(year, month, day, hourUtc);
+    return Date.UTC(year, month, 1 + ((7 - first) % 7) + (n - 1) * 7, hourUtc);
   }
-  const lastDate = new Date(Date.UTC(year, month + 1, 0));
-  return Date.UTC(year, month, lastDate.getUTCDate() - lastDate.getUTCDay(), hourUtc);
+  const last = new Date(Date.UTC(year, month + 1, 0));
+  return Date.UTC(year, month, last.getUTCDate() - last.getUTCDay(), hourUtc);
 }
-
 /** US DST: 2nd Sunday of March 02:00 local → 1st Sunday of November 02:00 local. */
-const usDst = (t: number, std: number) => {
+const usDst = (std: number) => (t: number) => {
   const y = new Date(t).getUTCFullYear();
   return t >= sunday(y, 2, 2, 2 - std) && t < sunday(y, 10, 1, 2 - (std + 1));
 };
@@ -29,34 +26,55 @@ const euDst = (t: number) => {
   const y = new Date(t).getUTCFullYear();
   return t >= sunday(y, 2, -1, 1) && t < sunday(y, 9, -1, 1);
 };
+const never = () => false;
 
 const ZONES: Record<string, { std: number; dst: (t: number) => boolean; abbr: [string, string] }> = {
-  'Asia/Seoul': { std: 9, dst: () => false, abbr: ['KST', 'KST'] },
-  'America/Los_Angeles': { std: -8, dst: (t) => usDst(t, -8), abbr: ['PST', 'PDT'] },
-  'America/Nassau': { std: -5, dst: (t) => usDst(t, -5), abbr: ['EST', 'EDT'] },
-  'Asia/Nicosia': { std: 2, dst: euDst, abbr: ['EET', 'EEST'] },
-  UTC: { std: 0, dst: () => false, abbr: ['UTC', 'UTC'] },
+  'America/Los_Angeles': { std: -8, dst: usDst(-8), abbr: ['PST', 'PDT'] },
+  'America/Denver': { std: -7, dst: usDst(-7), abbr: ['MST', 'MDT'] },
+  'America/Chicago': { std: -6, dst: usDst(-6), abbr: ['CST', 'CDT'] },
+  'America/New_York': { std: -5, dst: usDst(-5), abbr: ['EST', 'EDT'] },
+  UTC: { std: 0, dst: never, abbr: ['UTC', 'UTC'] },
+  'Europe/London': { std: 0, dst: euDst, abbr: ['GMT', 'BST'] },
+  'Europe/Prague': { std: 1, dst: euDst, abbr: ['CET', 'CEST'] },
+  'Asia/Seoul': { std: 9, dst: never, abbr: ['KST', 'KST'] },
+};
+
+export const TZ_OPTIONS: { tz: string; label: string }[] = [
+  { tz: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { tz: 'America/Denver', label: 'Mountain (MT)' },
+  { tz: 'America/Chicago', label: 'Central (CT)' },
+  { tz: 'America/New_York', label: 'Eastern (ET)' },
+  { tz: 'UTC', label: 'UTC' },
+  { tz: 'Europe/London', label: 'London' },
+  { tz: 'Europe/Prague', label: 'Central Europe' },
+  { tz: 'Asia/Seoul', label: 'Seoul' },
+];
+
+/** The device's zone when we can convert it, else Seoul. */
+export const deviceTz = () => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return tz && ZONES[tz] ? tz : 'Asia/Seoul';
+  } catch {
+    return 'Asia/Seoul';
+  }
 };
 
 const zone = (tz: string) => ZONES[tz] ?? ZONES.UTC;
+const ms = (at: string | number) => new Date(at).getTime();
 
-/** Offset of a zone from UTC at an instant, in ms. */
-export function offsetMs(t: number, tz: string) {
+export const offsetMs = (t: number, tz: string) => {
   const z = zone(tz);
   return (z.std + (z.dst(t) ? 1 : 0)) * HOUR;
-}
-
-export const tzAbbr = (tz: string, at: string | number = Date.now()) => {
-  const t = new Date(at).getTime();
-  const z = zone(tz);
-  return z.abbr[z.dst(t) ? 1 : 0];
 };
 
-export const tzCity = (tz: string) => (tz.split('/')[1] ?? tz).replace('_', ' ');
+export const tzAbbr = (tz: string, at: string | number = Date.now()) => {
+  const z = zone(tz);
+  return z.abbr[z.dst(ms(at)) ? 1 : 0];
+};
 
-/** Wall-clock parts of an instant in a zone. */
 function wall(at: string | number, tz: string) {
-  const t = new Date(at).getTime();
+  const t = ms(at);
   const d = new Date(t + offsetMs(t, tz));
   return { y: d.getUTCFullYear(), mo: d.getUTCMonth(), d: d.getUTCDate(), wd: d.getUTCDay(), h: d.getUTCHours(), mi: d.getUTCMinutes() };
 }
@@ -65,75 +83,56 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export const hoursFrom = (base: number, h: number) => new Date(base + h * HOUR).toISOString();
-
-/** YYYY-MM-DD of an instant in a zone. */
-export const dateKey = (at: string | number, tz: string) => {
-  const w = wall(at, tz);
-  return `${w.y}-${pad(w.mo + 1)}-${pad(w.d)}`;
-};
-
-export function addDays(key: string, n: number) {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+/** Local wall time → UTC ms (for "noon Las Vegas time"). */
+export function zonedToUtc(y: number, mo: number, d: number, h: number, tz: string) {
+  const guess = Date.UTC(y, mo, d, h);
+  return guess - offsetMs(guess - offsetMs(guess, tz), tz);
 }
-
-/** Today's date (series-local calendar) shifted by n days. */
-export const dayRel = (n: number, tz: string) => addDays(dateKey(Date.now(), tz), n);
 
 /** "7:30 PM" */
 export const fmtTime = (at: string | number, tz: string) => {
   const w = wall(at, tz);
   return `${w.h % 12 || 12}:${pad(w.mi)} ${w.h < 12 ? 'AM' : 'PM'}`;
 };
-
 /** "Wed, Oct 21" */
 export const fmtDate = (at: string | number, tz: string) => {
   const w = wall(at, tz);
   return `${WEEKDAYS[w.wd]}, ${MONTHS[w.mo]} ${w.d}`;
 };
-
 export const fmtDateTime = (at: string | number, tz: string) => `${fmtDate(at, tz)} · ${fmtTime(at, tz)}`;
+/** Big date label for cards, e.g. "THU, OCT 15". */
+export const fmtCardDate = (at: string | number, tz: string) => fmtDate(at, tz).toUpperCase();
 
-/** Calendar date label for a YYYY-MM-DD key: "Wed, Oct 21". */
-export const fmtKey = (key: string) => fmtDate(`${key}T12:00:00Z`, 'UTC');
-
-/** "Oct 21" for a YYYY-MM-DD key. */
-export const fmtShortKey = (key: string) => {
-  const [, m, d] = key.split('-').map(Number);
-  return `${MONTHS[m - 1]} ${d}`;
+/** YYYY-MM-DD in a zone (for grouping by day). */
+export const dayKey = (at: string | number, tz: string) => {
+  const w = wall(at, tz);
+  return `${w.y}-${pad(w.mo + 1)}-${pad(w.d)}`;
+};
+export const shiftKey = (key: string, n: number) => dayKey(Date.parse(`${key}T12:00:00Z`) + n * DAY, 'UTC');
+export const keyParts = (key: string) => {
+  const d = new Date(`${key}T12:00:00Z`);
+  return { weekday: WEEKDAYS[d.getUTCDay()], day: d.getUTCDate(), month: MONTHS[d.getUTCMonth()] };
+};
+/** Billing dates always carry the year: "Nov 20, 2026". */
+export const fmtBillingDate = (at: number) => {
+  const d = new Date(at);
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 };
 
-export const fmtSeriesDates = (a: string, b: string) => `${fmtShortKey(a)} – ${fmtShortKey(b)}`;
-
-export function fmtDuration(sec: number) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = Math.floor(sec % 60);
-  return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
-
-export function fmtCountdown(ms: number) {
+export const countdown = (ms: number) => {
   if (ms <= 0) return '00:00:00';
   const s = Math.floor(ms / 1000);
   return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
-}
+};
 
-/** "18.4K" */
-export const fmtCount = (n: number) => (n >= 1e6 ? `${trim(n / 1e6)}M` : n >= 1e3 ? `${trim(n / 1e3)}K` : String(n));
-const trim = (x: number) => (x >= 100 ? Math.round(x).toString() : x.toFixed(1).replace(/\.0$/, ''));
-
-/** "$8,420,000" */
-export const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
-
-/** "in 3h 20m" / "40m ago" */
+/** "in 3h 20m", "in 2 days", "40m ago". */
 export const relative = (at: string | number, now = Date.now()) => {
-  const ms = new Date(at).getTime() - now;
-  const m = Math.round(Math.abs(ms) / MIN);
+  const diff = ms(at) - now;
+  const m = Math.round(Math.abs(diff) / MIN);
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
   const txt = d >= 2 ? `${d} days` : h >= 1 ? `${h}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m}m`;
-  return ms >= 0 ? `in ${txt}` : `${txt} ago`;
+  return diff >= 0 ? `in ${txt}` : `${txt} ago`;
 };
 
 export { DAY, HOUR, MIN };

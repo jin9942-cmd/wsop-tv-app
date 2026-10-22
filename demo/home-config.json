@@ -1,37 +1,29 @@
 {
-  "version": 2,
-  "updatedAt": "2026-10-21T00:00:00Z",
+  "version": 3,
+  "updatedAt": "2026-10-22T00:00:00Z",
   "mode": "season",
   "layouts": {
     "season": [
-      { "type": "mainBanner", "visible": true },
-      { "type": "liveNow", "visible": true, "emptyMode": "countdown", "showViewers": true },
-      { "type": "todaySchedule", "visible": true },
-      { "type": "exclusive", "visible": true },
-      { "type": "tournaments", "visible": true },
-      { "type": "stripBanner", "visible": true },
-      { "type": "curatedVod", "visible": true, "curationId": "cu-1", "title": "Main Event Replay" },
-      { "type": "curatedVod", "visible": true, "curationId": "cu-2" },
-      { "type": "popularVod", "visible": true },
-      { "type": "continueWatching", "visible": true, "audience": ["free", "basic", "premium"] },
-      { "type": "players", "visible": true },
-      { "type": "notice", "visible": true },
-      { "type": "plans", "visible": false, "audience": ["guest", "free", "basic"] }
+      { "type": "billboard", "visible": true },
+      { "type": "channels", "visible": true },
+      { "type": "continueWatching", "visible": true },
+      { "type": "myList", "visible": true },
+      { "type": "comingUp", "visible": true },
+      { "type": "freeHighlights", "visible": true },
+      { "type": "followedPlayers", "visible": true },
+      { "type": "featuredPlayers", "visible": true },
+      { "type": "archive", "visible": true }
     ],
     "offseason": [
-      { "type": "mainBanner", "visible": true },
-      { "type": "exclusive", "visible": true },
-      { "type": "curatedVod", "visible": true, "curationId": "cu-1", "title": "Main Event Replay" },
-      { "type": "curatedVod", "visible": true, "curationId": "cu-3" },
-      { "type": "popularVod", "visible": true },
-      { "type": "continueWatching", "visible": true, "audience": ["free", "basic", "premium"] },
-      { "type": "todaySchedule", "visible": true },
-      { "type": "tournaments", "visible": true },
-      { "type": "stripBanner", "visible": true },
-      { "type": "players", "visible": true },
-      { "type": "notice", "visible": true },
-      { "type": "liveNow", "visible": false, "emptyMode": "hide" },
-      { "type": "plans", "visible": false, "audience": ["guest", "free", "basic"] }
+      { "type": "billboard", "visible": true },
+      { "type": "archive", "visible": true },
+      { "type": "freeHighlights", "visible": true },
+      { "type": "continueWatching", "visible": true },
+      { "type": "myList", "visible": true },
+      { "type": "channels", "visible": true },
+      { "type": "featuredPlayers", "visible": true },
+      { "type": "comingUp", "visible": true },
+      { "type": "followedPlayers", "visible": false }
     ]
   }
 }

@@ -1,26 +1,25 @@
 // Remote home configuration: section order and visibility, read at app start and on pull-to-refresh.
 // Schema: docs/home-config.md. Anything invalid falls back to the built-in default.
-import { DEFAULT_HOME_CONFIG, SECTION_TYPES, type HomeConfig, type HomeSection, type Mode, type SectionType } from '@/data/home';
-import type { Member } from '@/data/types';
+import { DEFAULT_HOME_CONFIG, SECTION_TYPES, type Audience, type HomeConfig, type HomeSection, type Mode, type SectionType } from '@/data/home';
 
 export const HOME_CONFIG_URL = process.env.EXPO_PUBLIC_HOME_CONFIG_URL;
 
-const MEMBERS: Member[] = ['guest', 'free', 'basic', 'premium'];
-/** Older audience names (first draft of home-config.json) mapped to member states. */
-const AUDIENCE_ALIASES: Record<string, Member[]> = {
-  member: ['free'],
+const AUDIENCES: Audience[] = ['guest', 'signedIn', 'wsopFree', 'basic', 'premium'];
+/** Names from the first draft of home-config.json. */
+const AUDIENCE_ALIASES: Record<string, Audience[]> = {
+  member: ['signedIn'],
+  free: ['wsopFree'],
   subscriber: ['basic', 'premium'],
-  signedIn: ['free', 'basic', 'premium'],
 };
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 
-function parseAudience(x: unknown): Member[] | undefined {
+function parseAudience(x: unknown): Audience[] | undefined {
   if (!Array.isArray(x)) return undefined;
-  const out = new Set<Member>();
+  const out = new Set<Audience>();
   for (const a of x) {
     if (typeof a !== 'string') continue;
-    if ((MEMBERS as string[]).includes(a)) out.add(a as Member);
+    if ((AUDIENCES as string[]).includes(a)) out.add(a as Audience);
     AUDIENCE_ALIASES[a]?.forEach((m) => out.add(m));
   }
   return [...out];
@@ -33,9 +32,6 @@ function parseSection(x: unknown): HomeSection | null {
     visible: x.visible !== false,
     title: typeof x.title === 'string' && x.title.trim() ? x.title : undefined,
     audience: parseAudience(x.audience),
-    curationId: typeof x.curationId === 'string' ? x.curationId : undefined,
-    emptyMode: x.emptyMode === 'hide' || x.emptyMode === 'countdown' ? x.emptyMode : undefined,
-    showViewers: typeof x.showViewers === 'boolean' ? x.showViewers : undefined,
   };
 }
 

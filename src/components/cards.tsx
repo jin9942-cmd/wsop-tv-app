@@ -1,227 +1,343 @@
-// Cards and rows shared by Home, Live, Schedule, VOD and detail screens (web demo Home.tsx exports).
+// Content cards (web demo v2 components/cards.tsx + Billboard cards): broadcasts, hands, players, classics, upcoming
+// days, events and saved items. Every card keeps the web demo's badges and copy.
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import type { ReactElement } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { seriesById } from '@/data/series';
-import type { MyListKind, Schedule, Vod } from '@/data/types';
-import { accessFor, eventLabel, isExclusive, phaseOf, seriesHue, statusOf, viewersOf } from '@/lib/access';
-import { fmtCount, fmtDuration, fmtSeriesDates, fmtTime } from '@/lib/time';
-import { useApp } from '@/state/app';
+import { HERO_DAY_ID, archive, dayById, eventById, hands, playerById, seriesById } from '@/data/mock';
+import type { ArchiveItem, Day, Hand, Player, TourEvent } from '@/data/types';
+import { isOnAir, shortEvent, tableDelay, tableStatus } from '@/lib/broadcast';
+import { chips, duration } from '@/lib/format';
+import { thumbFor } from '@/lib/media';
+import { useListAction } from '@/lib/mylist';
+import { VENUE_TZ, fmtCardDate, fmtDateTime, fmtTime, relative, tzAbbr } from '@/lib/time';
+import { canWatch, gateForAccess, useApp, useTick, type ListItem, type MenuAction } from '@/state/app';
 import { colors, radius, space, type } from '@/theme';
 
-import { Art, Avatar, Corner, Icon, LiveBadge, LockBadge, Pill, TierBadge } from './ui';
+import { HAND_META, HandGlyph } from './markers';
+import { AccessBadge, Art, Avatar, BraceletIcon, Corner, Icon, Label, Pill, Spoiler, StatusBadge, text } from './ui';
 
-export const CARD_W = 236;
-export const CARD_W_SM = 168;
-
-/** Horizontal row of cards (FlatList keeps long rows cheap). */
-export function HRow<T>({ data, render, keyOf, width = CARD_W }: { data: T[]; render: (item: T, index: number) => ReactElement; keyOf: (item: T) => string; width?: number }) {
+/** ⋯ button on a card: opens the card menu (My List etc.). Long-pressing the card does the same. */
+function CardMenu({ title, actions, inset = 8 }: { title: string; actions: MenuAction[]; inset?: number }) {
+  const { openSheet } = useApp();
   return (
-    <FlatList
-      horizontal
-      data={data}
-      keyExtractor={keyOf}
-      renderItem={({ item, index }) => <View style={{ width }}>{render(item, index)}</View>}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: space.gutter, gap: 12 }}
-      initialNumToRender={4}
-      windowSize={5}
-    />
+    <Pressable onPress={() => openSheet({ kind: 'menu', title, actions })} accessibilityRole="button" accessibilityLabel="More options" hitSlop={6} style={[styles.menuBtn, { top: inset, right: inset }]}>
+      <Icon name="dots" size={18} />
+    </Pressable>
   );
 }
 
-export function LiveCard({ s, now, viewers = true }: { s: Schedule; now: number; viewers?: boolean }) {
-  const { member } = useApp();
-  const locked = member !== 'guest' && accessFor(member, s.tier) !== 'ok';
+function useMenu(title: string, actions: MenuAction[]) {
+  const { openSheet } = useApp();
+  return () => openSheet({ kind: 'menu', title, actions });
+}
+
+export const watchHref = (dayId: string, params?: { t?: number; clip?: string }) =>
+  ({ pathname: '/watch/[dayId]', params: { dayId, ...(params?.t !== undefined ? { t: String(params.t) } : {}), ...(params?.clip ? { clip: params.clip } : {}) } }) as const;
+
+// ---- broadcast days -----------------------------------------------------------------------------
+
+export function BroadcastCard({ event, day, progress, extraActions }: { event: TourEvent; day: Day; progress?: number; extraActions?: MenuAction[] }) {
+  const { state, status } = useApp();
+  const st = status(day);
+  const listAction = useListAction('day', day.id);
+  const title = `${event.name} · ${day.label}`;
+  const actions = [listAction, ...(extraActions ?? [])];
+  const onLong = useMenu(title, actions);
+  const access = day.access ?? 'subscriber';
   return (
-    <Pressable onPress={() => router.push({ pathname: '/live/[id]', params: { id: s.id } })} accessibilityRole="button" accessibilityLabel={`${s.title}, live`}>
-      <Art hue={seriesHue(s.seriesId) + (s.lang === 'ES' ? 30 : 0)}>
+    <View>
+    <Pressable onPress={() => router.push(watchHref(day.id))} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title}>
+      <Art image={thumbFor(`day:${day.id}`)}>
         <Corner at="tl">
-          <LiveBadge />
-          {isExclusive(s) && <Pill>Only on WSOP TV</Pill>}
+          <StatusBadge status={st} size="sm" />
         </Corner>
-        <Corner at="tr">
-          <TierBadge tier={s.tier} />
+        <Corner at="br" inset={progress !== undefined ? 10 : 8}>
+          <AccessBadge onArt access={access} live={isOnAir(st)} locked={!canWatch(access, state, isOnAir(st))} />
         </Corner>
-        {viewers && (
-          <Corner at="bl">
-            <Pill>{`${fmtCount(viewersOf(s, now))} watching`}</Pill>
-          </Corner>
-        )}
-        {locked && (
-          <Corner at="br">
-            <LockBadge />
-          </Corner>
+        {progress !== undefined && (
+          <View style={styles.progress}>
+            <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+          </View>
         )}
       </Art>
-      <Text style={styles.title} numberOfLines={2}>
-        {s.title}
+      <Text style={text.cardTitle} numberOfLines={1}>
+        {title}
       </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {eventLabel(s)} · {s.lang}
-      </Text>
-    </Pressable>
-  );
-}
-
-export function VodCard({ v }: { v: Vod }) {
-  const { member } = useApp();
-  const locked = member !== 'guest' && accessFor(member, v.tier) !== 'ok';
-  return (
-    <Pressable onPress={() => router.push({ pathname: '/vod/[id]', params: { id: v.id } })} accessibilityRole="button" accessibilityLabel={v.title}>
-      <Art hue={seriesHue(v.seriesId) + 20}>
-        {locked && (
-          <Corner at="tl">
-            <LockBadge />
-          </Corner>
-        )}
-        <Corner at="tr">
-          <TierBadge tier={v.tier} />
-        </Corner>
-        <Corner at="br">
-          <Pill>{fmtDuration(v.durationSec)}</Pill>
-        </Corner>
-      </Art>
-      <Text style={styles.title} numberOfLines={2}>
-        {v.title}
-      </Text>
-      <Text style={styles.meta}>{v.type}</Text>
-    </Pressable>
-  );
-}
-
-export function SeriesCard({ id, now }: { id: string; now: number }) {
-  const x = seriesById(id);
-  if (!x) return null;
-  const phase = phaseOf(x, now);
-  return (
-    <Pressable onPress={() => router.push({ pathname: '/tournaments/[id]', params: { id: x.id } })} accessibilityRole="button" accessibilityLabel={x.name}>
-      <Art hue={x.hue} ratio={16 / 10}>
-        <Corner at="tl">
-          <Pill>{x.tour}</Pill>
-        </Corner>
-        {phase === 'ongoing' && (
-          <Corner at="tr">
-            <Pill>● On now</Pill>
-          </Corner>
-        )}
-      </Art>
-      <Text style={styles.title} numberOfLines={1}>
-        {x.name}
-      </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {fmtSeriesDates(x.start, x.end)} · {x.venue}
+      <Text style={text.cardMeta} numberOfLines={1}>
+        {seriesById(event.seriesId).name} · {st === 'upcoming' ? fmtDateTime(day.start, state.tz) : `Event #${event.number}`}
       </Text>
     </Pressable>
-  );
-}
-
-export function PlayerChip({ id, name, hue, sub, size = 64 }: { id: string; name: string; hue: number; sub?: string; size?: number }) {
-  return (
-    <Pressable onPress={() => router.push({ pathname: '/player/[id]', params: { id } })} accessibilityRole="button" accessibilityLabel={name} style={styles.playerChip}>
-      <Avatar name={name} hue={hue} size={size} />
-      <Text style={[styles.title, { textAlign: 'center' }]} numberOfLines={2}>
-        {name}
-      </Text>
-      {sub && (
-        <Text style={[styles.meta, { textAlign: 'center' }]} numberOfLines={1}>
-          {sub}
-        </Text>
-      )}
-    </Pressable>
-  );
-}
-
-/** Schedule row: Upcoming → reminder, LIVE → player, Ended → replay (web demo ScheduleRow). */
-export function ScheduleRow({ s, now }: { s: Schedule; now: number }) {
-  const { tz, alarms, toggleReminder } = useApp();
-  const status = statusOf(s, now);
-  const on = alarms.includes(s.id);
-  const open = () => {
-    if (status === 'ended' && s.vodId) router.push({ pathname: '/vod/[id]', params: { id: s.vodId } });
-    else if (status !== 'ended') router.push({ pathname: '/live/[id]', params: { id: s.id } });
-  };
-  return (
-    <View style={[styles.schedRow, status === 'ended' && { opacity: 0.6 }]}>
-      <Pressable style={styles.schedMain} onPress={open} accessibilityRole="button" accessibilityLabel={`${fmtTime(s.start, tz)} ${s.title}`}>
-        <View style={styles.schedTime}>
-          <Text style={[type.h3, type.tnum, { fontSize: 14 }]}>{fmtTime(s.start, tz)}</Text>
-          {s.originalStart && status === 'upcoming' && <Text style={styles.changed}>Changed</Text>}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.schedTitle} numberOfLines={2}>
-            {isExclusive(s) && <Text style={{ color: colors.gold }}>● </Text>}
-            {s.title}
-          </Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {eventLabel(s)} · {s.channelId} · {s.lang}
-          </Text>
-        </View>
-        {status === 'live' && <LiveBadge />}
-        {status === 'ended' && <Text style={styles.replay}>{s.vodId ? 'Replay' : 'Ended'}</Text>}
-      </Pressable>
-      {status === 'upcoming' && (
-        <Pressable
-          onPress={() => toggleReminder({ key: s.id, title: s.title, path: `/live/${s.id}?reminder=1` })}
-          accessibilityRole="button"
-          accessibilityState={{ selected: on }}
-          accessibilityLabel={on ? 'Remove reminder' : 'Set reminder'}
-          style={[styles.remind, on && styles.remindOn]}>
-          <Icon name={on ? 'bellOn' : 'bell'} size={15} color={on ? colors.ink : colors.muted} />
-          <Text style={[styles.remindText, on && { color: colors.ink }]}>{on ? 'Set' : 'Remind'}</Text>
-        </Pressable>
-      )}
+    <CardMenu title={title} actions={actions} />
     </View>
   );
 }
 
-const LIST_LABEL: Record<MyListKind, { add: string; saved: string }> = {
-  vod: { add: 'Watchlist', saved: 'In Watchlist' },
-  live: { add: 'Watchlist', saved: 'In Watchlist' },
-  player: { add: 'Follow', saved: 'Following' },
-  series: { add: 'Save', saved: 'Saved' },
-};
-
-/** Watchlist toggle on detail screens. Guests log in first, then the item is saved. */
-export function MyListButton({ kind, id }: { kind: MyListKind; id: string }) {
-  const { member, inMyList, toggleMyList, openSheet, toast } = useApp();
-  const saved = inMyList(kind, id);
-  const toggle = () => {
-    if (member === 'guest') {
-      return openSheet({
-        kind: 'login',
-        reason: 'Log in to save videos, live broadcasts, players and tournaments to your Watchlist.',
-        then: () => {
-          toggleMyList(kind, id);
-          toast('Added to Watchlist');
-        },
-      });
-    }
-    toast(toggleMyList(kind, id) ? 'Added to Watchlist' : 'Removed from Watchlist');
-  };
+/** One table feed on air (Home "On air now"). */
+export function OnAirCard({ e, d, tableIndex }: { e: TourEvent; d: Day; tableIndex: number }) {
+  const { state, status } = useApp();
+  const dayStatus = status(d);
+  const t = d.tables[tableIndex];
+  const st = tableStatus(t, dayStatus);
+  const offline = st === 'late' || st === 'interrupted';
+  const access = d.access ?? 'subscriber';
+  const delay = st === 'delayed' ? tableDelay(t, dayStatus) : 0;
   return (
-    <Pressable onPress={toggle} accessibilityRole="button" accessibilityState={{ selected: saved }} style={[styles.listBtn, saved && styles.listBtnOn]}>
-      <Icon name={kind === 'player' || kind === 'series' ? (saved ? 'star' : 'starOutline') : saved ? 'check' : 'add'} size={16} color={saved ? colors.goldStrong : colors.text} />
-      <Text style={[styles.listBtnText, saved && { color: colors.goldStrong }]}>{saved ? LIST_LABEL[kind].saved : LIST_LABEL[kind].add}</Text>
+    <Pressable onPress={() => router.push(watchHref(d.id))} accessibilityRole="button" accessibilityLabel={`${shortEvent(e.name)}, ${t.name}`}>
+      <View style={[styles.feed, offline && { opacity: 0.6 }]}>
+        <Image source={thumbFor(`feed:${t.id}`)} style={[StyleSheet.absoluteFill, offline && { opacity: 0.5 }]} contentFit="cover" />
+        <Corner at="tl">
+          <StatusBadge status={st} size="sm" delayMin={delay || 30} />
+        </Corner>
+        <Corner at="br">
+          <AccessBadge onArt access={access} live={isOnAir(dayStatus)} locked={!canWatch(access, state, isOnAir(dayStatus))} />
+        </Corner>
+      </View>
+      <Text style={[text.cardTitle, { fontSize: 14 }]} numberOfLines={1}>
+        {shortEvent(e.name)}
+      </Text>
+      <Text style={text.cardMeta} numberOfLines={1}>
+        {t.name}
+        {delay ? ` · ${delay}m delay` : ''}
+      </Text>
     </Pressable>
   );
 }
 
-export const styles = StyleSheet.create({
-  title: { color: colors.text, fontSize: 13.5, fontWeight: '700', marginTop: 8, lineHeight: 18 },
-  meta: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  playerChip: { alignItems: 'center', width: 96 },
-  schedRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.gutter, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, gap: 10 },
-  schedMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
-  schedTime: { width: 72 },
-  schedTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  changed: { color: colors.delayed, fontSize: 10.5, fontWeight: '800', marginTop: 2 },
-  replay: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  remind: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 34, paddingHorizontal: 10, borderRadius: 17, borderWidth: 1, borderColor: colors.lineStrong },
-  remindOn: { backgroundColor: colors.gold, borderColor: colors.gold },
-  remindText: { color: colors.muted, fontSize: 12, fontWeight: '800' },
-  listBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 38, paddingHorizontal: 14, borderRadius: radius.button, borderWidth: 1, borderColor: colors.lineStrong, alignSelf: 'flex-start' },
-  listBtnOn: { borderColor: colors.gold, backgroundColor: colors.goldDim },
-  listBtnText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+/** Upcoming broadcast day: still frame with a large date and venue time. */
+export function UpcomingCard({ e, d }: { e: TourEvent; d: Day }) {
+  const { state } = useApp();
+  const now = useTick(60_000);
+  const listAction = useListAction('day', d.id);
+  const title = `#${e.number} ${e.name}`;
+  const onLong = useMenu(title, [listAction]);
+  return (
+    <View>
+    <Pressable onPress={() => router.push(watchHref(d.id))} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title} style={styles.upcoming}>
+      <Art image={thumbFor(`day:${d.id}`)} style={{ borderRadius: 8 }}>
+        <View style={styles.upcomingShade} />
+        <Corner at="tl">
+          <StatusBadge status="upcoming" size="sm" />
+        </Corner>
+        <View style={styles.upcomingWhen}>
+          <Text style={[type.label, { color: 'rgba(255,255,255,0.85)' }]}>{fmtCardDate(d.start, VENUE_TZ)}</Text>
+          <Text style={[styles.upcomingTime, type.tnum]}>
+            {fmtTime(d.start, VENUE_TZ)} {tzAbbr(VENUE_TZ, d.start)}
+          </Text>
+        </View>
+      </Art>
+      <Text style={text.cardTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      <Text style={text.cardMeta}>
+        {d.label} · starts {relative(d.start, now)}
+      </Text>
+      <Text style={text.cardSub}>
+        {fmtTime(d.start, state.tz)} {tzAbbr(state.tz, d.start)} your time
+      </Text>
+    </Pressable>
+    <CardMenu title={title} actions={[listAction]} inset={18} />
+    </View>
+  );
+}
+
+// ---- hands ------------------------------------------------------------------------------------
+
+export function HandCard({ hand }: { hand: Hand }) {
+  const { state } = useApp();
+  const ev = eventById(hand.eventId)!;
+  const m = HAND_META[hand.type];
+  const listAction = useListAction('hand', hand.id);
+  const onLong = useMenu(hand.title, [listAction]);
+  return (
+    <View style={styles.handCard}>
+      {/* clip=… lets the player open just this hand when the full broadcast is locked (free highlights). */}
+      <Pressable onPress={() => router.push(watchHref(hand.dayId, { t: hand.t, clip: hand.id }))} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={hand.title}>
+        <Art image={thumbFor(`hand:${hand.id}`)}>
+          <Corner at="tl">
+            <View style={styles.handTag}>
+              <HandGlyph type={hand.type} size={14} />
+              <Text style={[styles.tagText]}>{m.label.toUpperCase()}</Text>
+            </View>
+          </Corner>
+          <Corner at="bl">
+            <AccessBadge onArt access={hand.access} locked={!canWatch(hand.access, state)} />
+          </Corner>
+          <Corner at="br">
+            <Pill>{duration(hand.durationSec)}</Pill>
+          </Corner>
+        </Art>
+        <Text style={[text.cardTitle, { fontSize: 14, lineHeight: 19 }]} numberOfLines={2}>
+          {hand.title}
+        </Text>
+        <Text style={text.cardMeta} numberOfLines={1}>
+          {hand.playerIds.map((id) => playerById(id).name).join(' vs ')}
+        </Text>
+        <View style={styles.handFoot}>
+          <Text style={[type.small, { color: colors.text }, type.tnum]}>
+            Pot <Text style={{ fontWeight: '800' }}>{chips(hand.pot)}</Text>
+          </Text>
+          <Text style={[type.small, { color: colors.subtle, flexShrink: 1 }]} numberOfLines={1}>
+            #{ev.number} {shortEvent(ev.name)}
+          </Text>
+        </View>
+      </Pressable>
+      <CardMenu title={hand.title} actions={[listAction]} inset={20} />
+      <View style={styles.handResult}>
+        <Spoiler k={`hand-${hand.id}`} label="Hand result hidden">
+          <Text style={[type.small, { color: colors.text, fontWeight: '700' }]}>{hand.result}</Text>
+        </Spoiler>
+      </View>
+    </View>
+  );
+}
+
+// ---- players ------------------------------------------------------------------------------------
+
+/** Player tile: large round avatar, name, country code · bracelets. */
+export function PlayerTile({ player }: { player: Player }) {
+  return (
+    <Pressable onPress={() => router.push({ pathname: '/players/[id]', params: { id: player.id } })} accessibilityRole="button" accessibilityLabel={player.name} style={styles.playerTile}>
+      <Avatar name={player.name} hue={player.hue} size={72} vivid />
+      <Text style={[type.body, { fontWeight: '800', textAlign: 'center', marginTop: 6 }]} numberOfLines={2}>
+        {player.name}
+      </Text>
+      <Text style={[type.small, type.tnum, { textAlign: 'center' }]}>
+        {player.cc} · {player.bracelets} bracelet{player.bracelets === 1 ? '' : 's'}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ---- archive ------------------------------------------------------------------------------------
+
+export function ArchiveCard({ item }: { item: ArchiveItem }) {
+  const { state, toast, requireLogin } = useApp();
+  const w = playerById(item.winnerId);
+  const listAction = useListAction('archive', item.id);
+  const title = `${item.year} ${item.title}`;
+  const onLong = useMenu(title, [listAction]);
+  const play = () => {
+    const gate = gateForAccess(item.access, state);
+    if (gate === 'ok') return toast('Archive playback opens the same player (demo)');
+    if (gate === 'login') return requireLogin(item.access === 'signin' ? 'Sign in free with GGPASS to watch this classic.' : 'Sign in to watch this classic.');
+    if (gate === 'plans' || gate === 'expired') return router.push({ pathname: '/plans', params: { access: item.access } });
+    if (gate === 'link') return toast('Link your GGPASS account to watch (see Account)');
+    if (gate === 'restricted') return toast('Viewing isn’t available on this account');
+    router.push('/devices');
+  };
+  return (
+    <View>
+      <Pressable onPress={play} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title}>
+        <Art image={thumbFor(`archive:${item.id}`)}>
+          <Corner at="tl">
+            <Label>{`CLASSIC · ${item.year}`}</Label>
+          </Corner>
+          <Corner at="bl">
+            <AccessBadge onArt access={item.access} locked={!canWatch(item.access, state)} />
+          </Corner>
+          <Corner at="br">
+            <Pill>{duration(item.durationSec)}</Pill>
+          </Corner>
+        </Art>
+        <Text style={text.cardTitle}>{title}</Text>
+        <Text style={text.cardMeta} numberOfLines={1}>
+          {item.subtitle}
+        </Text>
+      </Pressable>
+      <CardMenu title={title} actions={[listAction]} />
+      <View style={[styles.inline, { marginTop: 4 }]}>
+        <Text style={[type.small, { color: colors.subtle }]}>Champion </Text>
+        <Spoiler k={`archive-${item.id}`} label="Champion hidden">
+          <Text style={[type.small, { color: colors.text, fontWeight: '700' }]}>{w.name}</Text>
+        </Spoiler>
+      </View>
+    </View>
+  );
+}
+
+// ---- events / saved items ------------------------------------------------------------------------
+
+/** A saved event (events have no single card elsewhere). */
+export function EventCard({ eventId }: { eventId: string }) {
+  const e = eventById(eventId)!;
+  const action = useListAction('event', e.id);
+  const onLong = useMenu(e.name, [action]);
+  return (
+    <View>
+    <Pressable onPress={() => router.push({ pathname: '/events/[id]', params: { id: e.id } })} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={e.name}>
+      <Art image={thumbFor(`event:${e.id}`)}>
+        <Corner at="tl">
+          <View style={styles.handTag}>
+            <BraceletIcon size={12} />
+            <Text style={styles.tagText}>EVENT #{e.number}</Text>
+          </View>
+        </Corner>
+      </Art>
+      <Text style={text.cardTitle} numberOfLines={1}>
+        {e.name}
+      </Text>
+      <Text style={text.cardMeta} numberOfLines={1}>
+        {e.days.length} broadcast days · {e.game}
+      </Text>
+    </Pressable>
+    <CardMenu title={e.name} actions={[action]} />
+    </View>
+  );
+}
+
+/** Renders a saved item with the card it uses everywhere else. */
+export function ListItemCard({ item }: { item: ListItem }) {
+  if (item.kind === 'event') return eventById(item.id) ? <EventCard eventId={item.id} /> : null;
+  if (item.kind === 'day') {
+    const ref = dayById(item.id);
+    return ref ? <BroadcastCard event={ref.event} day={ref.day} /> : null;
+  }
+  if (item.kind === 'archive') {
+    const a = archive.find((x) => x.id === item.id);
+    return a ? <ArchiveCard item={a} /> : null;
+  }
+  const h = hands.find((x) => x.id === item.id);
+  return h ? <HandCard hand={h} /> : null;
+}
+
+/** Vertical list of full-width cards with the web demo's phone spacing. */
+export function CardStack({ children }: { children: ReactNode }) {
+  return <View style={styles.stack}>{children}</View>;
+}
+
+/** Grid with a fixed number of columns (phone layout of the web demo grids). */
+export function Grid({ cols, children, gap = 12 }: { cols: number; children: ReactNode[]; gap?: number }) {
+  return (
+    <View style={[styles.grid, { gap }]}>
+      {children.map((c, i) => (
+        <View key={i} style={{ width: `${Math.floor(1000 / cols) / 10 - 2}%` as `${number}%` }}>
+          {c}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export const isHero = (dayId: string) => dayId === HERO_DAY_ID;
+
+const styles = StyleSheet.create({
+  inline: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  menuBtn: { position: 'absolute', width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
+  progress: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
+  progressFill: { height: 4, backgroundColor: colors.gold },
+  feed: { aspectRatio: 16 / 9, borderRadius: radius.card, overflow: 'hidden', borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface2 },
+  upcoming: { borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, padding: 10 },
+  upcomingShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
+  upcomingWhen: { position: 'absolute', left: 12, bottom: 10 },
+  upcomingTime: { color: colors.text, fontSize: 24, fontWeight: '900', lineHeight: 28 },
+  handCard: { borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, padding: 12 },
+  handTag: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 4 },
+  tagText: { color: colors.text, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  handFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 8 },
+  handResult: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.line },
+  playerTile: { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2 },
+  stack: { paddingHorizontal: space.gutter, gap: 24 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.gutter },
 });

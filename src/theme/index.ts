@@ -32,6 +32,11 @@ export const colors = {
   demoBg: '#07121C',
 
   scrim: 'rgba(0,0,0,0.6)',
+
+  /** GGPASS / WSOP+ mocks (external domains) — deliberately a different, light tone. */
+  extBg: '#f4f5f7',
+  extInk: '#14161a',
+  extBrand: '#2b59c3',
 } as const;
 
 export const space = {

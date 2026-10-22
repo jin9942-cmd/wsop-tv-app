@@ -2,22 +2,23 @@
 
 TTN Kick-off 전에 내부 리더와 유관 부서에 미리 보여주기 위한 **클릭 가능한 앱 데모**입니다. 실제 서비스 개발용 코드가 아닙니다.
 
-- 기준: 웹 데모 (`../tv-service`). 앱 화면과 데모 설정은 `wsop-tv-pitch`, Live > Channels 탭·WSOP+ 명칭·디자인 토큰은 `wsop-tv-v2`(https://tv-service-keig.vercel.app/v2/)에서 가져왔습니다. 자세한 대응표: [docs/web-demo-map.md](docs/web-demo-map.md)
+- 기준: **배포된 웹 데모 v2** (https://tv-service-keig.vercel.app/v2/, 소스 `../tv-service/wsop-tv-v2`)의 모바일 화면. 대응표: [docs/web-demo-map.md](docs/web-demo-map.md)
 - 대상: **Android**와 웹 미리보기. iOS는 빌드하지 않습니다.
-- 데이터는 모두 목업입니다(가상 선수, 가상 결과). 영상은 공개 테스트 HLS 스트림 하나(`src/lib/media.ts`)이고, WSOP 중계가 아닙니다.
-- 로그인(GGPass)과 구독(WSOP+)은 버튼으로 회원 상태만 바꿉니다. 입력 폼, 비밀번호, 결제는 없습니다.
+- 데이터는 모두 목업입니다(가상 선수·결과). 이미지와 영상은 v2와 같은 Creative Commons 실사 포커 영상·스틸이며 WSOP 영상이 아닙니다(`assets/media/CREDITS.md`).
+- 로그인(GGPASS)과 구독(WSOP+)은 버튼과 모의 화면으로 회원 상태만 바꿉니다. 입력 폼, 비밀번호, 결제는 없습니다.
 - 상태는 메모리에만 있어서 앱을 다시 시작하면 초기화됩니다.
 
 ## 구조
 
 | 경로 | 내용 |
 | --- | --- |
-| `src/app` | Expo Router 라우트. `(tabs)` = Home · Live · Schedule · VOD · My, 그 밖에 `live/[id]`, `channel/[id]`, `vod/[id]`, `tournaments`, `player/[id]`, `search`, `paywall`, `watchlist`, `inbox`, `notices` |
-| `src/components` | 카드, 헤더, 시트(로그인·구독·데모 설정), 플레이어(expo-video), 토스트 |
-| `src/data` | 웹 데모 목업 이관: 시리즈·이벤트, 편성, VOD·선수, 홈 콘텐츠·기본 홈 구성, 플랜, 리니어 채널 |
-| `src/state/app.tsx` | Context 하나: 데모 설정, 회원 상태, 알림 신청, 워치리스트, 시청 기록, 원격 홈 구성, 시트, 토스트 |
-| `src/theme` | 디자인 토큰 (다크 고정) |
-| `src/lib` | 시간대, 권한 규칙, 원격 홈 구성, 로컬 알림, 햅틱 |
+| `src/app` | Expo Router 라우트. `(tabs)` = Home · Live · Schedule · Hands · More, 그 밖에 `watch/[dayId]`, `events`, `players`, `archive`, `search`, `my-list`, `account`, `plans`, `devices`, `ggpass`, `wsop-plus/join`, `membership/check`, `live/[id]`(딥링크) |
+| `src/components` | 카드, 빌보드, Live 화면, 채널 화면, 플레이어(`player/`: 영상·오버레이·게이트·패널), 시트, 헤더 |
+| `src/data` | v2 목업 그대로: 시리즈·이벤트·방송일·선수·핸드·아카이브(`mock.ts`), 채널 편성, 정책(`policy.ts`), 홈 기본 구성 |
+| `src/state` | Context 하나(`app.tsx`: 데모 설정, 회원 상태, 알림 신청, My List, 시청 기록, 원격 홈 구성, 시트, 토스트) + 칩 카운트 |
+| `src/theme` | v2 디자인 토큰 (다크 고정) |
+| `src/lib` | 시간대, 방송 상태, 미디어(스틸·영상), 검색, 원격 홈 구성, 로컬 알림, 햅틱 |
+| `assets/media` | v2 CC 스틸 74장 (`src/lib/stills.ts`가 번들에 포함) |
 | `demo/home-config.json` | 원격 홈 구성 예시 — [docs/home-config.md](docs/home-config.md) |
 | `scripts/serve-home-config.js` | 로컬 홈 구성 서버 (CORS, 캐시 없음) |
 | `scripts/make-brand-assets.ps1` | 아이콘·Android adaptive 전경·스플래시·파비콘 생성 |
@@ -51,22 +52,19 @@ npx expo start --dev-client
 
 ### 데모 조작
 
-- **데모 설정 시트**: 홈 로고(WSOP TV)를 길게 누르거나 My > ⚙ Demo Settings
-  - 회원 상태 (Not signed in / WSOP+ Free / Basic / Premium)
-  - 운영 모드 (Season / Off-season)
-  - No live broadcasts (데모 시계를 오늘 첫 방송 전으로 이동)
-  - 표시 시간대 (Seoul / Los Angeles)
-  - 원격 홈 구성 상태와 다시 불러오기
+- **데모 설정 시트**: 헤더의 WSOP TV 워드마크를 길게 누르거나 More > ⚙ Demo Settings
+  - v2 Demo Controls: 회원 상태 9가지, WSOP TV included from, Featured stream(Live / Delayed / VOD / Late start / Interrupted), Region restricted / VPN / Traveling abroad, Spoiler-Free Mode, WSOP+ page result
+  - 앱 설정: 운영 모드(Season / Off-season), No live broadcasts, 표시 시간대, 원격 홈 구성 상태와 다시 불러오기
 - **홈 새로고침**: 당겨서 새로고침 (웹은 헤더의 ↻)
 
 ### 시연 시나리오
 
-1. 비로그인 → 홈 → LIVE NOW 카드 → GGPass 로그인 유도 시트
-2. Continue with GGPass(WSOP+ Free) → Premium 라이브 → 10초 미리보기 → 구독 안내 시트 → Subscribe to WSOP+ Premium → 바로 시청
-3. Live > Channels · 24/7 → 편성 구간별 권한 (하이라이트/클래식 Free, 라이브는 해당 방송 등급, 잠긴 채널에서는 볼 수 있는 채널 안내)
-4. 데모 설정에서 Season/Off-season, No live broadcasts, 시간대 전환 → 홈·편성표에 즉시 반영
+1. 비로그인 → 홈 → Watch live(또는 방송 카드) → Sign in to watch + GGPASS 로그인 시트
+2. Continue with GGPASS → GGPASS 모의 화면(Sign in → Allow) → WSOP+ Free로 복귀 → 유료 방송 **10초 미리보기** → “WSOP+ Basic required” 시트 → Join WSOP+ Basic → 바로 시청
+3. Live > Channels → 채널별 지금 방송의 권한(Highlights·Classic Free, Live는 해당 등급) · 잠긴 채널에서 볼 수 있는 채널 안내 · 채널 가이드
+4. 데모 설정에서 Season / Off-season, No live broadcasts, 시간대 전환 → 홈·편성표에 즉시 반영
 5. `demo/home-config.json` 수정 → 홈 당겨서 새로고침 → 섹션 순서 변경 (재배포 없음)
-6. (Android 빌드) 편성표에서 Remind → 처음이면 알림 권한 요청 → 10초 뒤 "Live now" 로컬 알림 → 탭하면 `wsoptvdemo://live/{id}` 플레이어. 웹에서는 같은 시점에 앱 안 토스트(Watch 버튼)로 대신합니다.
+6. (Android 빌드) Schedule에서 Remind me → 처음이면 알림 권한 요청 → 10초 뒤 로컬 알림 “Live now” → 탭하면 `wsoptvdemo://live/{dayId}` 플레이어. 웹에서는 같은 시점에 앱 안 토스트(Watch 버튼)
 
 ## 검사
 
