@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 25.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_HOME_CONFIG_URL": "https://tv-service-keig.vercel.app/demo/home-config.json"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_HOME_CONFIG_URL": "https://tv-service-keig.vercel.app/demo/home-config.json"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_HOME_CONFIG_URL": "https://tv-service-keig.vercel.app/demo/home-config.json"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
