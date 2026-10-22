@@ -9,7 +9,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_HOME_CONFIG_URL": "https://tv-service-keig.vercel.app/demo/home-config.json"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",

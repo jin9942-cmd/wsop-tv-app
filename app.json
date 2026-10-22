@@ -55,6 +55,23 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "12b811ea-fb34-4fb1-b10b-06e21e97cbe4"
+      }
+    },
+    "owner": "joan.park",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/12b811ea-fb34-4fb1-b10b-06e21e97cbe4"
     }
   }
 }
