@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FlatList, Platform, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Billboard } from '@/components/Billboard';
-import { ArchiveCard, BroadcastCard, CardStack, Grid, HandCard, ListItemCard, PlayerTile, UpcomingCard } from '@/components/cards';
+import { ArchiveCard, BroadcastCard, HandCard, ListItemCard, PlayerTile, SwipeRow, UpcomingCard } from '@/components/cards';
 import { HomeChannelCard } from '@/components/channel';
 import { AppHeader, Footer } from '@/components/headers';
 import { IconButton, SectionHeader } from '@/components/ui';
@@ -77,11 +77,7 @@ function ChannelsRow({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'On the channels now'} kicker="24/7 channels" action="Channel guide" onAction={() => router.push({ pathname: '/live', params: { tab: 'channels' } })} />
-      <CardStack>
-        {channels.map((ch) => (
-          <HomeChannelCard key={ch.id} ch={ch} now={now} />
-        ))}
-      </CardStack>
+      <SwipeRow data={channels} keyOf={(ch) => ch.id} render={(ch) => <HomeChannelCard ch={ch} now={now} />} />
     </Section>
   );
 }
@@ -107,17 +103,18 @@ function ContinueRow({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'Continue Watching'} />
-      <CardStack>
-        {items.slice(0, 4).map(({ ref, sec }) => (
+      <SwipeRow
+        data={items}
+        keyOf={(x) => x.ref.day.id}
+        render={({ ref, sec }) => (
           <BroadcastCard
-            key={ref.day.id}
             event={ref.event}
             day={ref.day}
             progress={sec / (ref.day.durationMin * 60)}
             extraActions={[{ label: 'Remove from Continue Watching', icon: 'close', onSelect: () => remove(ref.day.id) }]}
           />
-        ))}
-      </CardStack>
+        )}
+      />
     </Section>
   );
 }
@@ -129,14 +126,7 @@ function MyListRow({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'My List'} action="See all" onAction={() => router.push('/my-list')} />
-      <CardStack>
-        {[...state.myList]
-          .sort((a, b) => b.addedAt - a.addedAt)
-          .slice(0, 4)
-          .map((x) => (
-            <ListItemCard key={x.kind + x.id} item={x} />
-          ))}
-      </CardStack>
+      <SwipeRow data={[...state.myList].sort((a, b) => b.addedAt - a.addedAt).slice(0, 10)} keyOf={(x) => x.kind + x.id} render={(x) => <ListItemCard item={x} />} />
     </Section>
   );
 }
@@ -149,15 +139,11 @@ function ComingUp({ title }: { title?: string }) {
     .sort((a, b) => a.d.start.localeCompare(b.d.start))
     // one card per event: its next broadcast day
     .filter((x, i, arr) => arr.findIndex((y) => y.e.id === x.e.id) === i)
-    .slice(0, 4);
+    .slice(0, 8);
   return (
     <Section>
       <SectionHeader title={title ?? 'Coming up'} action="Full schedule" onAction={() => router.navigate('/schedule')} />
-      <CardStack>
-        {upcoming.map(({ e, d }) => (
-          <UpcomingCard key={d.id} e={e} d={d} />
-        ))}
-      </CardStack>
+      <SwipeRow data={upcoming} keyOf={(x) => x.d.id} render={({ e, d }) => <UpcomingCard e={e} d={d} />} />
     </Section>
   );
 }
@@ -167,11 +153,7 @@ function FreeHighlights({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'Free highlights'} kicker="No account needed" action="All hands" onAction={() => router.navigate('/hands')} />
-      <CardStack>
-        {free.slice(0, 4).map((h) => (
-          <HandCard key={h.id} hand={h} />
-        ))}
-      </CardStack>
+      <SwipeRow data={free.slice(0, 8)} keyOf={(h) => h.id} render={(h) => <HandCard hand={h} />} />
     </Section>
   );
 }
@@ -179,16 +161,12 @@ function FreeHighlights({ title }: { title?: string }) {
 function FollowedHands({ title }: { title?: string }) {
   const { state, signedIn } = useApp();
   const followed = Object.keys(state.followed);
-  const list = hands.filter((h) => h.playerIds.some((p) => followed.includes(p))).slice(0, 4);
+  const list = hands.filter((h) => h.playerIds.some((p) => followed.includes(p))).slice(0, 10);
   if (!signedIn || !list.length) return null;
   return (
     <Section>
       <SectionHeader title={title ?? 'From players you follow'} action="Players" onAction={() => router.push('/players')} />
-      <CardStack>
-        {list.map((h) => (
-          <HandCard key={h.id} hand={h} />
-        ))}
-      </CardStack>
+      <SwipeRow data={list} keyOf={(h) => h.id} render={(h) => <HandCard hand={h} />} />
     </Section>
   );
 }
@@ -198,11 +176,8 @@ function FeaturedPlayers({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'Featured players'} action="All players" onAction={() => router.push('/players')} />
-      <Grid cols={3}>
-        {featured.map((p) => (
-          <PlayerTile key={p.id} player={p} />
-        ))}
-      </Grid>
+      {/* One swipe row of round player tiles (a 3-column grid left the 10th player alone on its row). */}
+      <SwipeRow data={featured} keyOf={(p) => p.id} render={(p) => <PlayerTile player={p} />} width={104} />
     </Section>
   );
 }
@@ -211,11 +186,7 @@ function Classics({ title }: { title?: string }) {
   return (
     <Section>
       <SectionHeader title={title ?? 'Relive the finals'} action="Archive" onAction={() => router.push('/archive')} />
-      <CardStack>
-        {archive.map((a) => (
-          <ArchiveCard key={a.id} item={a} />
-        ))}
-      </CardStack>
+      <SwipeRow data={archive} keyOf={(a) => a.id} render={(a) => <ArchiveCard item={a} />} />
     </Section>
   );
 }

@@ -2,8 +2,8 @@
 // days, events and saved items. Every card keeps the web demo's badges and copy.
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ReactElement, ReactNode } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HERO_DAY_ID, archive, dayById, eventById, hands, playerById, seriesById } from '@/data/mock';
 import type { ArchiveItem, Day, Hand, Player, TourEvent } from '@/data/types';
@@ -307,18 +307,31 @@ export function CardStack({ children }: { children: ReactNode }) {
   return <View style={styles.stack}>{children}</View>;
 }
 
-/** Grid with a fixed number of columns (phone layout of the web demo grids). */
-export function Grid({ cols, children, gap = 12 }: { cols: number; children: ReactNode[]; gap?: number }) {
+export const ROW_GAP = 12;
+
+/**
+ * One home row: cards side by side, swiped left / right. The next card peeks in at the edge so the row reads as
+ * scrollable; it snaps card by card. FlatList keeps long rows cheap.
+ */
+export function SwipeRow<T>({ data, keyOf, render, width = 280 }: { data: T[]; keyOf: (item: T) => string; render: (item: T) => ReactElement | null; width?: number }) {
   return (
-    <View style={[styles.grid, { gap }]}>
-      {children.map((c, i) => (
-        <View key={i} style={{ width: `${Math.floor(1000 / cols) / 10 - 2}%` as `${number}%` }}>
-          {c}
-        </View>
-      ))}
-    </View>
+    <FlatList
+      horizontal
+      data={data}
+      keyExtractor={keyOf}
+      renderItem={({ item }) => <View style={{ width }}>{render(item)}</View>}
+      ItemSeparatorComponent={RowGap}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: space.gutter }}
+      snapToInterval={width + ROW_GAP}
+      decelerationRate="fast"
+      disableIntervalMomentum
+      initialNumToRender={3}
+      windowSize={5}
+    />
   );
 }
+const RowGap = () => <View style={{ width: ROW_GAP }} />;
 
 export const isHero = (dayId: string) => dayId === HERO_DAY_ID;
 
@@ -339,5 +352,4 @@ const styles = StyleSheet.create({
   handResult: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.line },
   playerTile: { alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2 },
   stack: { paddingHorizontal: space.gutter, gap: 24 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.gutter },
 });

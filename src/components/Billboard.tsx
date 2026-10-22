@@ -16,7 +16,7 @@ import { VENUE_TZ, countdown, fmtTime } from '@/lib/time';
 import { useApp, useTick } from '@/state/app';
 import { colors, space, type } from '@/theme';
 
-import { OnAirCard, watchHref } from './cards';
+import { OnAirCard, SwipeRow, watchHref } from './cards';
 import { BraceletIcon, Button, StatusBadge } from './ui';
 
 export function Billboard() {
@@ -110,20 +110,14 @@ function OnAirBand() {
   const { status } = useApp();
   const days = events.flatMap((e) => e.days.map((d) => ({ e, d }))).filter(({ d }) => isBroadcasting(status(d)));
   const feeds = days.flatMap(({ e, d }) => d.tables.map((t, i) => ({ e, d, t, i })));
-  const ordered = [...feeds.filter((c) => c.i === 0), ...feeds.filter((c) => c.i > 0)].slice(0, 6);
+  const ordered = [...feeds.filter((c) => c.i === 0), ...feeds.filter((c) => c.i > 0)];
   return (
     <View style={styles.band}>
-      <Text style={[type.label, { color: 'rgba(242,242,243,0.8)', marginBottom: 12 }]}>{ordered.length ? 'On air now' : 'Schedule'}</Text>
+      <Text style={[type.label, { color: 'rgba(242,242,243,0.8)', marginBottom: 12, paddingHorizontal: space.gutter }]}>{ordered.length ? 'On air now' : 'Schedule'}</Text>
       {ordered.length ? (
-        <View style={styles.grid}>
-          {ordered.map(({ e, d, t, i }) => (
-            <View key={t.id} style={styles.cell}>
-              <OnAirCard e={e} d={d} tableIndex={i} />
-            </View>
-          ))}
-        </View>
+        <SwipeRow data={ordered} keyOf={(x) => x.t.id} render={({ e, d, i }) => <OnAirCard e={e} d={d} tableIndex={i} />} width={200} />
       ) : (
-        <Pressable onPress={() => router.navigate('/schedule')} accessibilityRole="link">
+        <Pressable onPress={() => router.navigate('/schedule')} accessibilityRole="link" style={{ paddingHorizontal: space.gutter }}>
           <Text style={{ color: colors.gold, fontWeight: '700' }}>Nothing on air — open the schedule →</Text>
         </Pressable>
       )}
@@ -140,7 +134,5 @@ const styles = StyleSheet.create({
   dot: { color: colors.subtle },
   ghostBtn: { minHeight: 48, paddingHorizontal: 24, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   credit: { position: 'absolute', right: 12, bottom: 6, left: 12, textAlign: 'right', color: 'rgba(255,255,255,0.45)', fontSize: 10 },
-  band: { paddingHorizontal: space.gutter, paddingVertical: 20, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(19,20,24,0.6)' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16 },
-  cell: { width: '48%' },
+  band: { paddingVertical: 20, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(19,20,24,0.6)' },
 });
