@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { handFor } from '@/data/hand';
 import { bbFor, dayById, events, hands, playerById, seatsFor, seriesById } from '@/data/mock';
-import { CATCH_UP_DAYS, requiredTier, tierFull, TRAVEL_UNAVAILABLE_EVENTS } from '@/data/policy';
+import { CATCH_UP_DAYS, PRESENTATION, requiredTier, tierFull, TRAVEL_UNAVAILABLE_EVENTS } from '@/data/policy';
 import type { Hand, OverlayLevel } from '@/data/types';
 import { isOnAir, shortEvent, shortTableName, tableDelay, tableStatus } from '@/lib/broadcast';
 import { chips, duration, money } from '@/lib/format';
@@ -377,12 +377,14 @@ function Overview({ dayId, delayMin, status }: { dayId: string; delayMin: number
           </View>
         ))}
       </View>
-      <View style={[styles.inline, { marginTop: 8 }]}>
-        <Label bg="transparent" border={colors.lineStrong} color={colors.subtle} size={9}>
-          SAMPLE
-        </Label>
-        <Text style={[type.caption, { flex: 1 }]}>Tournament figures are sample data, not an EBS / live-reporting feed.</Text>
-      </View>
+      {!PRESENTATION && (
+        <View style={[styles.inline, { marginTop: 8 }]}>
+          <Label bg="transparent" border={colors.lineStrong} color={colors.subtle} size={9}>
+            SAMPLE
+          </Label>
+          <Text style={[type.caption, { flex: 1 }]}>Tournament figures are sample data, not an EBS / live-reporting feed.</Text>
+        </View>
+      )}
     </View>
   );
 }

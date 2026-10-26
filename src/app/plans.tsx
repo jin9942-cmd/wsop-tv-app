@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SubHead } from '@/components/headers';
 import { Button, Icon, Placeholder } from '@/components/ui';
-import { INCLUDED_FROM_LABEL, MEMBERSHIP_PRICES, TIER_NAME, atLeast, requiredTier, tierFull, tvCoverage, type PaidTier, type Tier } from '@/data/policy';
+import { INCLUDED_FROM_LABEL, PRESENTATION, MEMBERSHIP_PRICES, TIER_NAME, atLeast, requiredTier, tierFull, tvCoverage, type PaidTier, type Tier } from '@/data/policy';
 import type { Access } from '@/data/types';
 import { memberTier, useApp } from '@/state/app';
 import { colors, radius, space, type } from '@/theme';
@@ -38,12 +38,14 @@ export default function Plans() {
         <Text style={[type.label, { color: colors.gold }]}>WSOP+ membership</Text>
         <Text style={[type.title, { marginTop: 4 }]}>WSOP TV is included with WSOP+</Text>
         <Text style={[type.small, { marginTop: 6, lineHeight: 19 }]}>One GGPass account, one membership. Joining, billing and cancelling all happen in WSOP+ — WSOP TV simply reads your tier.</Text>
+        {!PRESENTATION && (
         <View style={[styles.inline, { marginTop: 8, flexWrap: 'wrap' }]}>
           <Placeholder />
           <Text style={type.caption}>
             Tier names, prices and what each tier covers aren’t final · WSOP TV currently included from: <Text style={{ color: colors.muted, fontWeight: '700' }}>{INCLUDED_FROM_LABEL[state.includedFrom]}</Text>
           </Text>
         </View>
+        )}
 
         <View style={{ gap: 12, marginTop: 20 }}>
           {COLUMNS.map((tier) => {

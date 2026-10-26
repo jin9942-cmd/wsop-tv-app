@@ -11,6 +11,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { HERO_DAY_ID, HERO_EXPECTED_START, dayById, events, seriesById } from '@/data/mock';
 import { isBroadcasting, isOnAir } from '@/lib/broadcast';
 import { count } from '@/lib/format';
+import { PRESENTATION } from '@/data/policy';
 import { FOOTAGE, FOOTAGE_NOTE, HERO_POSTER } from '@/lib/media';
 import { VENUE_TZ, countdown, fmtTime } from '@/lib/time';
 import { useApp, useTick } from '@/state/app';
@@ -74,7 +75,8 @@ export function Billboard() {
             </Pressable>
           </View>
         </View>
-        <Text style={styles.credit}>{FOOTAGE_NOTE}</Text>
+        {/* Presentation build: the footage credit moves to the footer. */}
+        {!PRESENTATION && <Text style={styles.credit}>{FOOTAGE_NOTE}</Text>}
       </View>
       <OnAirBand />
     </View>
@@ -110,7 +112,8 @@ function OnAirBand() {
   const { status } = useApp();
   const days = events.flatMap((e) => e.days.map((d) => ({ e, d }))).filter(({ d }) => isBroadcasting(status(d)));
   const feeds = days.flatMap(({ e, d }) => d.tables.map((t, i) => ({ e, d, t, i })));
-  const ordered = [...feeds.filter((c) => c.i === 0), ...feeds.filter((c) => c.i > 0)];
+  // Presentation build: one card per on-air broadcast (its main feed); other feeds are picked on the watch screen.
+  const ordered = PRESENTATION ? feeds.filter((c) => c.i === 0) : [...feeds.filter((c) => c.i === 0), ...feeds.filter((c) => c.i > 0)];
   return (
     <View style={styles.band}>
       <Text style={[type.label, { color: 'rgba(242,242,243,0.8)', marginBottom: 12, paddingHorizontal: space.gutter }]}>{ordered.length ? 'On air now' : 'Schedule'}</Text>

@@ -40,6 +40,13 @@ export function tvCoverage(tier: Exclude<Tier, 'free'>, includedFrom: IncludedFr
   return ['Same WSOP TV access as WSOP+ Free'];
 }
 
+/**
+ * Presentation build (CEO report), same as the web demo v2: clean artwork, no broadcast-fault feeds
+ * (late / interrupted / failing), no planning annotations (Placeholder, Sample, store-policy notes), and no visible
+ * Demo Settings entry (long-press the WSOP TV wordmark). Set to false to bring the full planning demo back.
+ */
+export const PRESENTATION = true;
+
 export const NEXT_PAYMENT_DAYS = 30;
 /** Watched share after which a broadcast leaves Continue Watching. */
 export const COMPLETE_THRESHOLD = 0.95;

@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HERO_DAY_ID, archive, dayById, eventById, hands, playerById, seriesById } from '@/data/mock';
+import { PRESENTATION } from '@/data/policy';
 import type { ArchiveItem, Day, Hand, Player, TourEvent } from '@/data/types';
 import { isOnAir, shortEvent, tableDelay, tableStatus } from '@/lib/broadcast';
 import { chips, duration } from '@/lib/format';
@@ -16,7 +17,7 @@ import { canWatch, gateForAccess, useApp, useTick, type ListItem, type MenuActio
 import { colors, radius, space, type } from '@/theme';
 
 import { HAND_META, HandGlyph } from './markers';
-import { AccessBadge, Art, Avatar, BraceletIcon, Corner, Icon, Label, Pill, Spoiler, StatusBadge, text } from './ui';
+import { AccessBadge, Art, Avatar, BraceletIcon, Corner, Icon, Label, LiveTag, Pill, Spoiler, StatusBadge, text } from './ui';
 
 /** ⋯ button on a card: opens the card menu (My List etc.). Long-pressing the card does the same. */
 function CardMenu({ title, actions, inset = 8 }: { title: string; actions: MenuAction[]; inset?: number }) {
@@ -50,12 +51,22 @@ export function BroadcastCard({ event, day, progress, extraActions }: { event: T
     <View>
     <Pressable onPress={() => router.push(watchHref(day.id))} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title}>
       <Art image={thumbFor(`day:${day.id}`)}>
-        <Corner at="tl">
-          <StatusBadge status={st} size="sm" />
-        </Corner>
-        <Corner at="br" inset={progress !== undefined ? 10 : 8}>
-          <AccessBadge onArt access={access} live={isOnAir(st)} locked={!canWatch(access, state, isOnAir(st))} />
-        </Corner>
+        {PRESENTATION ? (
+          isOnAir(st) && (
+            <Corner at="tl">
+              <LiveTag />
+            </Corner>
+          )
+        ) : (
+          <>
+            <Corner at="tl">
+              <StatusBadge status={st} size="sm" />
+            </Corner>
+            <Corner at="br" inset={progress !== undefined ? 10 : 8}>
+              <AccessBadge onArt access={access} live={isOnAir(st)} locked={!canWatch(access, state, isOnAir(st))} />
+            </Corner>
+          </>
+        )}
         {progress !== undefined && (
           <View style={styles.progress}>
             <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
@@ -87,19 +98,22 @@ export function OnAirCard({ e, d, tableIndex }: { e: TourEvent; d: Day; tableInd
     <Pressable onPress={() => router.push(watchHref(d.id))} accessibilityRole="button" accessibilityLabel={`${shortEvent(e.name)}, ${t.name}`}>
       <View style={[styles.feed, offline && { opacity: 0.6 }]}>
         <Image source={thumbFor(`feed:${t.id}`)} style={[StyleSheet.absoluteFill, offline && { opacity: 0.5 }]} contentFit="cover" />
-        <Corner at="tl">
-          <StatusBadge status={st} size="sm" delayMin={delay || 30} />
-        </Corner>
-        <Corner at="br">
-          <AccessBadge onArt access={access} live={isOnAir(dayStatus)} locked={!canWatch(access, state, isOnAir(dayStatus))} />
-        </Corner>
+        {!PRESENTATION && (
+          <>
+            <Corner at="tl">
+              <StatusBadge status={st} size="sm" delayMin={delay || 30} />
+            </Corner>
+            <Corner at="br">
+              <AccessBadge onArt access={access} live={isOnAir(dayStatus)} locked={!canWatch(access, state, isOnAir(dayStatus))} />
+            </Corner>
+          </>
+        )}
       </View>
       <Text style={[text.cardTitle, { fontSize: 14 }]} numberOfLines={1}>
         {shortEvent(e.name)}
       </Text>
       <Text style={text.cardMeta} numberOfLines={1}>
-        {t.name}
-        {delay ? ` · ${delay}m delay` : ''}
+        {PRESENTATION ? `${d.label}${d.tables.length > 1 ? ` · ${d.tables.length} ${d.label === 'Final Table' ? 'camera feeds' : 'tables'}` : ` · ${t.name}`}` : `${t.name}${delay ? ` · ${delay}m delay` : ''}`}
       </Text>
     </Pressable>
   );
@@ -117,9 +131,11 @@ export function UpcomingCard({ e, d }: { e: TourEvent; d: Day }) {
     <Pressable onPress={() => router.push(watchHref(d.id))} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title} style={styles.upcoming}>
       <Art image={thumbFor(`day:${d.id}`)} style={{ borderRadius: 8 }}>
         <View style={styles.upcomingShade} />
-        <Corner at="tl">
-          <StatusBadge status="upcoming" size="sm" />
-        </Corner>
+        {!PRESENTATION && (
+          <Corner at="tl">
+            <StatusBadge status="upcoming" size="sm" />
+          </Corner>
+        )}
         <View style={styles.upcomingWhen}>
           <Text style={[type.label, { color: 'rgba(255,255,255,0.85)' }]}>{fmtCardDate(d.start, VENUE_TZ)}</Text>
           <Text style={[styles.upcomingTime, type.tnum]}>
@@ -161,9 +177,11 @@ export function HandCard({ hand }: { hand: Hand }) {
               <Text style={[styles.tagText]}>{m.label.toUpperCase()}</Text>
             </View>
           </Corner>
-          <Corner at="bl">
-            <AccessBadge onArt access={hand.access} locked={!canWatch(hand.access, state)} />
-          </Corner>
+          {!PRESENTATION && (
+            <Corner at="bl">
+              <AccessBadge onArt access={hand.access} locked={!canWatch(hand.access, state)} />
+            </Corner>
+          )}
           <Corner at="br">
             <Pill>{duration(hand.durationSec)}</Pill>
           </Corner>
@@ -231,12 +249,16 @@ export function ArchiveCard({ item }: { item: ArchiveItem }) {
     <View>
       <Pressable onPress={play} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={title}>
         <Art image={thumbFor(`archive:${item.id}`)}>
-          <Corner at="tl">
-            <Label>{`CLASSIC · ${item.year}`}</Label>
-          </Corner>
-          <Corner at="bl">
-            <AccessBadge onArt access={item.access} locked={!canWatch(item.access, state)} />
-          </Corner>
+          {!PRESENTATION && (
+            <>
+              <Corner at="tl">
+                <Label>{`CLASSIC · ${item.year}`}</Label>
+              </Corner>
+              <Corner at="bl">
+                <AccessBadge onArt access={item.access} locked={!canWatch(item.access, state)} />
+              </Corner>
+            </>
+          )}
           <Corner at="br">
             <Pill>{duration(item.durationSec)}</Pill>
           </Corner>
@@ -268,12 +290,14 @@ export function EventCard({ eventId }: { eventId: string }) {
     <View>
     <Pressable onPress={() => router.push({ pathname: '/events/[id]', params: { id: e.id } })} onLongPress={onLong} accessibilityRole="button" accessibilityLabel={e.name}>
       <Art image={thumbFor(`event:${e.id}`)}>
-        <Corner at="tl">
-          <View style={styles.handTag}>
-            <BraceletIcon size={12} />
-            <Text style={styles.tagText}>EVENT #{e.number}</Text>
-          </View>
-        </Corner>
+        {!PRESENTATION && (
+          <Corner at="tl">
+            <View style={styles.handTag}>
+              <BraceletIcon size={12} />
+              <Text style={styles.tagText}>EVENT #{e.number}</Text>
+            </View>
+          </Corner>
+        )}
       </Art>
       <Text style={text.cardTitle} numberOfLines={1}>
         {e.name}

@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { airing, effectiveKind, KIND_LABEL, programAt, reminderKey, upNext, type Airing, type LinearChannel, type Program } from '@/data/channels';
 import { dayById } from '@/data/mock';
-import { TRAVEL_UNAVAILABLE_EVENTS } from '@/data/policy';
+import { PRESENTATION, TRAVEL_UNAVAILABLE_EVENTS } from '@/data/policy';
 import { FOOTAGE, STANDBY_POSTER, tableVideo, thumbFor } from '@/lib/media';
 import { fmtTime } from '@/lib/time';
 import { canWatch, useApp, type AppState } from '@/state/app';
@@ -103,11 +103,13 @@ export function HomeChannelCard({ ch, now }: { ch: LinearChannel; now: number })
         <View style={styles.shade} />
         <Corner at="tl">
           <Label>{`CH ${ch.number}`}</Label>
-          <ProgramTag p={p} a={a} />
+          {!PRESENTATION && <ProgramTag p={p} a={a} />}
         </Corner>
-        <Corner at="br" inset={10}>
-          <AccessBadge onArt access={p.access} live={onAir} locked={!watchableNow(ch, now, state)} />
-        </Corner>
+        {!PRESENTATION && (
+          <Corner at="br" inset={10}>
+            <AccessBadge onArt access={p.access} live={onAir} locked={!watchableNow(ch, now, state)} />
+          </Corner>
+        )}
         <View style={styles.bar}>
           <View style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: onAir ? colors.live : colors.gold }]} />
         </View>

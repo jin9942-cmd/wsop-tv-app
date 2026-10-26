@@ -6,7 +6,7 @@ import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch as RNSwitch, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
-import { requiredTier, TIER_BADGE, type Tier } from '@/data/policy';
+import { PRESENTATION, requiredTier, TIER_BADGE, type Tier } from '@/data/policy';
 import type { Access, StreamStatus } from '@/data/types';
 import { initials } from '@/lib/format';
 import { useApp } from '@/state/app';
@@ -146,6 +146,16 @@ export function StatusBadge({ status, delayMin = 30, size = 'md' }: { status: St
   if (status === 'late') return <View style={[styles.badge, pad, { borderWidth: 1, borderColor: colors.delayed, backgroundColor: 'rgba(0,0,0,0.5)' }]}>{label('LATE START', colors.delayed)}</View>;
   if (status === 'interrupted') return <View style={[styles.badge, pad, { borderWidth: 1, borderColor: colors.live, backgroundColor: 'rgba(0,0,0,0.5)' }]}>{label('INTERRUPTED', colors.live)}</View>;
   return <View style={[styles.badge, pad, { backgroundColor: colors.surface3 }]}>{label('VOD', colors.muted)}</View>;
+}
+
+/** The only label on artwork in the presentation build: on air now (live or delayed coverage). */
+export function LiveTag() {
+  return (
+    <View style={[styles.badge, styles.badgeSm, { backgroundColor: colors.live }]}>
+      <View style={[styles.dot, { backgroundColor: '#fff' }]} />
+      <Text style={[styles.badgeText, { color: '#fff', fontSize: 10 }]}>LIVE</Text>
+    </View>
+  );
 }
 
 /** Small uppercase tag on dark glass (e.g. "CLASSIC · 2019", "Ended"). */
@@ -412,6 +422,8 @@ export function Tabs<T extends string>({ value, tabs, onChange, label }: { value
 
 /** Marks a value that isn't decided yet (price, retention, thresholds…). */
 export function Placeholder() {
+  // Presentation build: no planning annotations.
+  if (PRESENTATION) return null;
   return (
     <View style={[styles.badge, { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.lineStrong, paddingHorizontal: 4, paddingVertical: 0 }]}>
       <Text style={[styles.badgeText, { color: colors.subtle, fontSize: 9 }]}>PLACEHOLDER</Text>

@@ -103,7 +103,7 @@ export function Footer() {
           <Text style={type.small}>{x}</Text>
         </Pressable>
       ))}
-      <Text style={[type.caption, { textAlign: 'center', marginTop: 20 }]}>WSOP TV (working title) · Interactive demo · All players, events and results are fictional.</Text>
+      <Text style={[type.caption, { textAlign: 'center', marginTop: 20 }]}>WSOP TV (working title) · Interactive demo · All players, events and results are fictional · Footage: World Poker Tour (CC BY 3.0), BrewCrewCountry93 (CC BY-SA 4.0) via Wikimedia Commons</Text>
     </View>
   );
 }
