@@ -42,11 +42,14 @@ export function Billboard() {
         <LinearGradient colors={['rgba(11,12,14,0.94)', 'rgba(11,12,14,0.86)', 'rgba(11,12,14,0.4)', 'transparent']} locations={[0, 0.28, 0.48, 0.64]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <LinearGradient colors={['transparent', 'rgba(11,12,14,0.6)', colors.bg]} locations={[0.4, 0.85, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={styles.heroText}>
-          <View style={styles.inline}>
-            <StatusBadge status={live ? st : 'upcoming'} />
-            <Text style={[type.label, { color: 'rgba(242,242,243,0.9)' }]}>{live ? 'Featured now' : 'No live tournaments right now · up next'}</Text>
-          </View>
-          <Text style={styles.title}>{ev.name}</Text>
+          {/* Presentation build: no status badge (DELAYED) or "Featured now" label above the title. */}
+          {!PRESENTATION && (
+            <View style={styles.inline}>
+              <StatusBadge status={live ? st : 'upcoming'} />
+              <Text style={[type.label, { color: 'rgba(242,242,243,0.9)' }]}>{live ? 'Featured now' : 'No live tournaments right now · up next'}</Text>
+            </View>
+          )}
+          <Text style={[styles.title, PRESENTATION && { marginTop: 0 }]}>{ev.name}</Text>
           <View style={[styles.inline, { flexWrap: 'wrap', rowGap: 2 }]}>
             <Text style={styles.meta}>{se.name}</Text>
             <Text style={styles.dot}>·</Text>
