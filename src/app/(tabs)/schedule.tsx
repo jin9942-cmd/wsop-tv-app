@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/headers';
 import { Button, EmptyState, FilterChip, StatusBadge } from '@/components/ui';
 import { events, seriesById } from '@/data/mock';
 import type { Day, TourEvent } from '@/data/types';
+import { PRESENTATION } from '@/data/policy';
 import { isBroadcasting, isOnAir, tableDelay } from '@/lib/broadcast';
 import { money } from '@/lib/format';
 import { TZ_OPTIONS, VENUE_TZ, dayKey, fmtTime, keyParts, relative, shiftKey, tzAbbr } from '@/lib/time';
@@ -136,7 +137,8 @@ function Row({ e, d, first, last }: { e: TourEvent; d: Day; first: boolean; last
         {fmtTime(d.start, state.tz)} {tzAbbr(state.tz, d.start)} your time
       </Text>
       <View style={[styles.inline, { marginTop: 10, flexWrap: 'wrap' }]}>
-        <StatusBadge status={status} size="sm" delayMin={delay || 30} />
+        {/* Presentation build: no LIVE / DELAYED / UPCOMING / VOD badge on the rows. */}
+        {!PRESENTATION && <StatusBadge status={status} size="sm" delayMin={delay || 30} />}
         <Text style={[type.small, type.tnum]}>
           #{e.number} · {d.label} · {e.buyIn ? money(e.buyIn) : 'Invitational'}
         </Text>
